@@ -1,0 +1,181 @@
+name: 'Create Pull Request'
+description: 'Reusable action for creating a pull request for code review'
+
+inputs:
+  action_ref:
+    description: "Ref for workflow or action checkout"
+    required: false
+    default: 'main'
+
+  release_tag:
+    description: "Project release version number or tag (e.g. v1.0.0)"
+    required: true
+
+  # branch_token:
+  #   description: "Token to use for branch protection"
+  #   required: true
+
+outputs:
+  error_messages:
+    description: 'Errors encountered trying to create pull request'
+    value: '${{ steps.output_errors.outputs.error_messages }}'
+  
+  pull_request:
+    description: 'Pull request number'
+    value: '${{ steps.create_pull.outputs.pull_request }}'
+
+runs:
+  using: 'composite'
+
+  steps:
+    - name: 'Checkout workflows'
+      id: checkout_workflows
+      uses: actions/checkout@v3
+      with:
+        repository: usf-cs272-spring2023/action-workflows
+        path: 'workflows'
+        ref: '${{ inputs.action_ref }}'
+
+    - name: 'Checkout repository'
+      id: checkout_repo
+      shell: bash
+      run: |
+        git clone --depth 1 --no-tags https://github-actions:${{ github.token }}@github.com/${{ github.repository }} project-main
+
+    - name: 'Listing source code'
+      id: listing_source
+      working-directory: 'project-main'
+      shell: bash
+      run: |
+        echo "::group::Listing source code..."
+        ls -ACGR src/main/java
+        echo "::endgroup::"
+
+    - name: 'Fetching commit history and tags'
+      id: git_unshallow
+      working-directory: 'project-main'
+      shell: bash
+      run: |
+        echo "::group::Fetching tags..."
+        git fetch --unshallow --tags
+        echo "::endgroup::"
+
+    - name: 'Comparing release to main branch'
+      id: comparing_main
+      uses: actions/github-script@v6
+      env:
+        USER_PATH: 'project-main'
+        RELEASE_TAG: '${{ inputs.release_tag }}'
+      with:
+        script: |
+          const command = 'git';
+          const args = ['diff', '--exit-code', '--shortstat', 'origin/main', `refs/tags/${ process.env.RELEASE_TAG }`];
+          const cwd = `${process.env.USER_PATH}`;
+          const message = `The main branch has one or more commits since release ${ process.env.RELEASE_TAG } was created. There must be no changes between the main branch and the release for code review.`;
+          const expected = 0;
+
+          const options = {ignoreReturnCode: true, cwd: cwd};
+          const result = await exec.exec(command, args, options);
+
+          if (result !== expected) {
+            core.setOutput('error_messages', message);
+            core.setFailed(message);
+          }
+
+    - name: 'Creating review branch'
+      id: creating_branch
+      uses: actions/github-script@v6
+      env:
+        USER_PATH: 'project-main'
+        RELEASE_TAG: '${{ inputs.release_tag }}'
+      with:
+        script: |
+          const command = 'git';
+          const args = ['checkout', '-b', `review/${process.env.RELEASE_TAG}`];
+          const cwd = `${process.env.USER_PATH}`;
+          const message = `Unable to create review branch for release ${process.env.RELEASE_TAG}. If this branch already exists, please delete it before requesting code review or request code review of a different release.`;
+          const expected = 0;
+
+          const options = {ignoreReturnCode: true, cwd: cwd};
+          const result = await exec.exec(command, args, options);
+
+          if (result !== expected) {
+            core.setOutput('error_messages', message);
+            core.setFailed(message);
+          }
+
+    - name: 'Committing review branch'
+      id: committing_branch
+      working-directory: 'project-main'
+      shell: bash
+      env:
+        RELEASE_TAG: '${{ inputs.release_tag }}'
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git commit --allow-empty -m "Creating $RELEASE_TAG review branch"
+        git status
+
+    - name: 'Pushing review branch'
+      id: pushing_branch
+      uses: actions/github-script@v6
+      env:
+        USER_PATH: 'project-main'
+        RELEASE_TAG: '${{ inputs.release_tag }}'
+      with:
+        script: |
+          const command = 'git';
+          const args = ['push', '-u', 'origin', `review/${process.env.RELEASE_TAG}`];
+          const cwd = `${process.env.USER_PATH}`;
+          const message = `Unable to push review branch for release ${ process.env.RELEASE_TAG } was created. If this branch already exists, please delete it before requesting code review or request code review of a different release.`;
+          const expected = 0;
+
+          const options = {ignoreReturnCode: true, cwd: cwd};
+          const result = await exec.exec(command, args, options);
+
+          if (result !== expected) {
+            core.setOutput('error_messages', message);
+            core.setFailed(message);
+          }
+
+    # CANNOT DO UNTIL use secrets:inherit on calling workflow  
+    # - name: 'Protect review branch'
+    #   id: protect_branch
+    #   uses: actions/github-script@v6
+    #   continue-on-error: true
+    #   env:
+    #     RELEASE_TAG: '${{ inputs.release_tag }}'
+    #   with:
+    #     github-token: '${{ inputs.branch_token }}'
+    #     script: |
+    #       const script = require('./workflows/.github/scripts/issue-protect.js');
+    #       return await script({github, context, core});
+
+    - name: 'Create pull request'
+      id: create_pull
+      uses: actions/github-script@v6
+      env:
+        RELEASE_TAG: '${{ inputs.release_tag }}'
+      with:
+        script: |
+          const script = require('./workflows/.github/scripts/issue-pull.js');
+          return await script({github, context, core});
+
+    - name: 'Output errors'
+      id: output_errors
+      if: ${{ failure() }}
+      uses: actions/github-script@v6
+      env:
+        STEP_RESULTS: '${{ toJSON(steps) }}'
+      with:
+        script: |
+          const results = JSON.parse(process.env.STEP_RESULTS);
+          let messages = '';
+
+          for (const property in results) {
+            if (results[property]?.outputs?.error_messages != undefined) {
+              messages += `${results[property].outputs.error_messages}`;
+            }
+          }
+
+          core.setOutput('error_messages', messages);

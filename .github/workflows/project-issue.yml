@@ -1,0 +1,138 @@
+name: 'Check Project Issue'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  main:
+    name: 'Check Project Issue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 'Checkout workflows'
+        id: checkout_workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Create initial issue comment'
+        id: create_comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-comment.js');
+            return await script({github, context, core});
+
+      - name: 'Parse request details'
+        id: parse_request
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-parse.js');
+            return await script({github, context, core});
+
+      - name: 'Find run for release'
+        id: find_release
+        uses: actions/github-script@v6
+        env:
+          RELEASE_TAG: '${{ steps.parse_request.outputs.release_tag }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-action.js');
+            return await script({github, context, core});
+
+      - name: 'Download release results'
+        id: download_json
+        uses: usf-cs272-spring2023/action-check-results@main
+        with:
+          artifact_name: 'check-release-results'
+          artifact_json: 'check-release-results.json'
+          workflow_name: 'project-release.yml'
+          workflow_run:  '${{ steps.find_release.outputs.run_id }}'
+          access_token: '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: 'Verify release results'
+        id: verify_request
+        uses: actions/github-script@v6
+        env:
+          RELEASE_TAG:   '${{ steps.parse_request.outputs.release_tag }}'
+
+          VERSION_MAJOR: '${{ steps.parse_request.outputs.version_major }}'
+          VERSION_MINOR: '${{ steps.parse_request.outputs.version_minor }}'
+          VERSION_PATCH: '${{ steps.parse_request.outputs.version_patch }}'
+
+          REQUEST_TYPE:  '${{ steps.parse_request.outputs.request_type }}'
+          RESULTS_JSON:  '${{ steps.download_json.outputs.json_string }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-verify.js');
+            return await script({github, context, core});
+
+      - name: 'Get milestone for request'
+        id: get_milestone
+        uses: actions/github-script@v6
+        env:
+          MILESTONE_NAME: '${{ steps.verify_request.outputs.milestone_name }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-milestone.js');
+            return await script({github, context, core});
+
+      - name: 'Get grade information'
+        id: calculate_grade
+        if: ${{ startsWith(steps.parse_request.outputs.request_type, 'grade_') }}
+        uses: usf-cs272-spring2023/action-check-deadline@main
+        env:
+          SUBMITTED_DATE: '${{ steps.verify_request.outputs.submitted_date }}'
+        with:
+          assignment_name: '${{ steps.verify_request.outputs.assignment_name }}'
+          starting_points: '${{ steps.verify_request.outputs.starting_points }}'
+          submitted_date:  '${{ steps.verify_request.outputs.submitted_date }}'
+          extension_hours: '${{ steps.parse_request.outputs.extension_hours }}'
+
+      - name: 'Create pull request'
+        id: create_pull
+        if: ${{ steps.parse_request.outputs.request_type == 'request_review' }}
+        uses: ./workflows/.github/actions/project-pull
+        with:
+          action_ref:   '${{ inputs.action_ref }}'
+          release_tag:  '${{ steps.parse_request.outputs.release_tag }}'
+          # branch_token: '${{ secrets.FA22_BRANCH_PROTECTION }}'
+
+      - name: 'Install luxon'
+        shell: bash
+        run: npm install luxon
+
+      - name: 'Update issue with success'
+        id: update_success
+        if: ${{ success() }}
+        uses: actions/github-script@v6
+        env:
+          COMMENT_ID: '${{ steps.create_comment.outputs.comment_id }}'
+          RESULTS: ${{ toJSON(steps) }}
+        with:
+          script: |
+            const { DateTime, Settings } = require('luxon');
+            const script = require('./workflows/.github/scripts/issue-success.js');
+            return await script({github, context, core, DateTime, Settings});
+
+      - name: 'Update issue with failure'
+        id: update_failure
+        if: ${{ failure() || cancelled() }}
+        uses: actions/github-script@v6
+        env:
+          COMMENT_ID: '${{ steps.create_comment.outputs.comment_id }}'
+          RESULTS: ${{ toJSON(steps) }}
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-failure.js');
+            return await script({github, context, core});

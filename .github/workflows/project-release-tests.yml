@@ -1,0 +1,267 @@
+name: 'Run Tests'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+      release_tag:
+        description: "Project release version number or tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+    outputs:
+      # release information
+      release_tag:
+        description: "The release tag"
+        value: '${{ jobs.main.outputs.release_tag }}'
+
+      release_ref:
+        description: "The release ref (for checkout)"
+        value: '${{ jobs.main.outputs.release_ref }}'
+
+      release_id:
+        description: "The release id"
+        value: '${{ jobs.main.outputs.release_id }}'
+
+      # version information
+      version_major:
+        description: "The major version number (i.e. project number) from the release tag"
+        value: '${{ jobs.main.outputs.version_major }}'
+
+      version_minor:
+        description: "The minor version number (i.e. code review number) from the release tag"
+        value: '${{ jobs.main.outputs.version_minor }}'
+
+      version_patch:
+        description: "The patch version number from the release tag"
+        value: '${{ jobs.main.outputs.version_patch }}'
+
+      # user repo information
+      user_path:
+        description: "Local path to store the project source code"
+        value: '${{ jobs.main.outputs.user_path }}'
+
+      user_repo:
+        description: "Repository to use for the project source code"
+        value: '${{ github.repository }}'
+
+      user_cache:
+        description: "Key to use to cache the source repository"
+        value: '${{ jobs.main.outputs.user_cache }}'
+
+      # test repo information
+      test_path:
+        description: "Local path to store the project test code"
+        value: '${{ jobs.main.outputs.test_path }}'
+
+      test_cache:
+        description: "Key to use to cache the test repository"
+        value: '${{ jobs.main.outputs.test_cache }}'
+
+      test_repo:
+        description: "Repository to use for the project test code"
+        value: '${{ github.repository_owner }}/project-tests'
+
+      # saved job status
+      status:
+        description: "Status of each step in this workflow"
+        value: ${{ jobs.main.outputs.status }}
+
+jobs:
+  main:
+    name: 'Tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    outputs:
+      release_tag: '${{ steps.parse_release.outputs.release_tag }}'
+      release_ref: '${{ steps.parse_release.outputs.release_ref }}'
+      release_id:  '${{ steps.parse_release.outputs.release_id }}'
+
+      version_major: '${{ steps.parse_release.outputs.version_major }}'
+      version_minor: '${{ steps.parse_release.outputs.version_minor }}'
+      version_patch: '${{ steps.parse_release.outputs.version_patch }}'
+
+      user_path: '${{ steps.generate_keys.outputs.user_path }}'
+      test_path: '${{ steps.generate_keys.outputs.test_path }}'
+
+      user_cache: '${{ steps.generate_keys.outputs.user_cache }}'
+      test_cache: '${{ steps.generate_keys.outputs.test_cache }}'
+
+      status: ${{ steps.step_status.outputs.status }}
+
+    steps: 
+      - name: 'Checkout workflows'
+        id: checkout_workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Parse release tag'
+        id: parse_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/release-parse.js');
+            return await script({github, context, core});
+
+      - name: 'Generate cache keys'
+        id: generate_keys
+        run: |
+          USER_PATH=project-main
+          USER_KEY=${{ steps.parse_release.outputs.release_tag }}_${{ steps.parse_release.outputs.release_id }}
+          echo "User Key: ${USER_KEY}"
+          echo "user_path=${USER_PATH}" >> $GITHUB_OUTPUT
+          echo "user_cache=${USER_PATH}-${USER_KEY}" >> $GITHUB_OUTPUT
+
+          TEST_PATH=project-tests
+          TEST_KEY=$(git ls-remote --refs https://github-actions:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/${TEST_PATH}.git main | head -1 | cut -f 1)
+          echo "Test Key: ${TEST_KEY}"
+          echo "test_path=${TEST_PATH}" >> $GITHUB_OUTPUT
+          echo "test_cache=${TEST_PATH}-${TEST_KEY}" >> $GITHUB_OUTPUT
+
+      - name: 'Setup project code'
+        id: setup_project_code
+        uses: ./workflows/.github/actions/project-setup
+        with:
+          release_ref: '${{ steps.parse_release.outputs.release_ref }}'
+          user_repo:   '${{ github.repository }}'
+          user_path:   '${{ steps.generate_keys.outputs.user_path }}'
+          user_cache:  '${{ steps.generate_keys.outputs.user_cache }}'
+          test_repo:   '${{ github.repository_owner }}/project-tests'
+          test_path:   '${{ steps.generate_keys.outputs.test_path }}'
+          test_cache:  '${{ steps.generate_keys.outputs.test_cache }}'
+          setup_java:  'true'
+
+      - name: 'Compile project code'
+        id: compile_project_code
+        uses: actions/github-script@v6
+        env:
+          USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', '-DcompileOptionXlint=-Xlint:none', '-DcompileOptionXdoclint=-Xdoclint:none', '-Dmaven.compiler.showWarnings=false', '-DcompileOptionFail=false', 'compile'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `Unable to compile project source code using Maven.`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Listing project code'
+        id: list_project_code
+        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
+        run: |
+          ls -ACGR target/classes
+
+      - name: 'Compile test code' 
+        id: compile_test_code
+        uses: actions/github-script@v6
+        env:
+          USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', '-DcompileOptionXlint=-Xlint:none', '-DcompileOptionXdoclint=-Xdoclint:none', '-Dmaven.compiler.showWarnings=false', '-DcompileOptionFail=false', 'test-compile'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `Unable to compile project test code using Maven.`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Listing test code'
+        id: list_test_code
+        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
+        run: |
+          ls -ACGR target/test-classes
+
+      - name: 'Run current project tests'
+        id: run_this_tests
+        uses: actions/github-script@v6
+        env:
+          TEST_TAG: 'test-${{ steps.parse_release.outputs.test_number }}'
+          USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, 'test'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `One or more tests failed for the current project.`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Run previous project tests'
+        id: run_past_tests
+        uses: actions/github-script@v6
+        env:
+          TEST_TAG: 'past-${{ steps.parse_release.outputs.version_major }}'
+          USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, 'test'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `One or more tests failed for the previous project. Those tests must still pass!`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Run next project tests'
+        id: run_next_tests
+        uses: actions/github-script@v6
+        env:
+          TEST_TAG: 'next-${{ steps.parse_release.outputs.test_number }}'
+          USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, 'test'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `One or more tests failed for the next project. Functionality for the next project should be in a different branch!`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Save step status'
+        id: step_status
+        uses: actions/github-script@v6
+        if: ${{ always() }}
+        env:
+          STEP_STATUS: ${{ toJSON(steps) }}
+        with:
+          script: |
+            core.setOutput('status', process.env.STEP_STATUS);
+            core.info(process.env.STEP_STATUS);

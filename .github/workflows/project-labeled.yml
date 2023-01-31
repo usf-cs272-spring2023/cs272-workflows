@@ -1,0 +1,36 @@
+# name is not used (should match caller workflow)
+name: 'Project Label'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  main:
+    # second name used on summary sidebar (should be specific but short)
+    name: 'Main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      # name used in run log group (use sentence case)
+      - name: 'Checkout workflows'
+        id: checkout-workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      # name used in run log group (use sentence case)
+      - name: 'Check if event allowed'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/labeled-verify.js');
+            return await script({github, context, core});

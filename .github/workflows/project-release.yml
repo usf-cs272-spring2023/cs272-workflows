@@ -1,0 +1,72 @@
+# breaking up into jobs is nice because:
+# - it allows for concurrency (jobs can run simultaneously)
+# - it is easier to navigate in run summary (each job has its own logs)
+# - it is easier to see what failed (each job has its own status)
+
+# breaking up into jobs is poor because:
+# - each job is charged a minimum of 1 minute
+# - each job runtime is rounded UP when charged
+# - have limited number of minutes
+# - have to re-setup environment each time
+
+name: 'Project Release'
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Project release version number or tag (e.g. v1.0.0)"
+        required: false
+        type: string
+
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+
+    steps:
+      - shell: bash
+        run: echo "hello world"
+
+  # check_tests:
+  #   name: 'Check'
+  #   uses: ./.github/workflows/project-release-tests.yml
+  #   with:
+  #     action_ref:  '${{ inputs.action_ref }}'
+  #     release_tag: '${{ inputs.release_tag }}'
+
+  # check_style:
+  #   name: 'Check'
+  #   needs: ['check_tests']
+  #   uses: ./.github/workflows/project-release-style.yml
+  #   with:
+  #     action_ref:  '${{ inputs.action_ref }}'
+  #     release_ref: '${{ needs.check_tests.outputs.release_ref }}'
+
+  #     version_major: '${{ needs.check_tests.outputs.version_major }}'
+  #     version_minor: '${{ needs.check_tests.outputs.version_minor }}'
+  #     version_patch: '${{ needs.check_tests.outputs.version_patch }}'
+
+  #     user_repo:  '${{ needs.check_tests.outputs.user_repo }}'
+  #     user_path:  '${{ needs.check_tests.outputs.user_path }}'
+  #     user_cache: '${{ needs.check_tests.outputs.user_cache }}'
+
+  # check_results:
+  #   name: 'Save'
+  #   needs: ['check_tests', 'check_style']
+  #   if: ${{ always() }}
+  #   uses: ./.github/workflows/project-release-results.yml
+  #   with:
+  #     action_ref:  '${{ inputs.action_ref }}'
+  #     release_tag: '${{ needs.check_tests.outputs.release_tag }}'
+
+  #     version_major: '${{ needs.check_tests.outputs.version_major }}'
+  #     version_minor: '${{ needs.check_tests.outputs.version_minor }}'
+  #     version_patch: '${{ needs.check_tests.outputs.version_patch }}'
+
+  #     results: ${{ toJSON(needs) }}

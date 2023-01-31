@@ -1,0 +1,75 @@
+name: 'Project Results'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+      release_tag:
+        description: "Project release version number or tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+      # version information
+      version_major:
+        description: "The major version number (i.e. project number) from the release tag"
+        required: true
+        type: string
+
+      version_minor:
+        description: "The minor version number (i.e. code review number) from the release tag"
+        required: true
+        type: string
+
+      version_patch:
+        description: "The patch version number from the release tag"
+        required: true
+        type: string
+
+      # results from other jobs and steps
+      results:
+        description: "Results from previous jobs"
+        required: true
+        type: string
+
+jobs:
+  main:
+    name: 'Results'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 'Checkout workflows'
+        id: checkout_workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Check and save eligibility'
+        id: check_results
+        uses: actions/github-script@v6
+        env:
+          RELEASE_TAG:   '${{ inputs.release_tag }}'
+          VERSION_MAJOR: '${{ inputs.version_major }}'
+          VERSION_MINOR: '${{ inputs.version_minor }}'
+          VERSION_PATCH: '${{ inputs.version_patch }}'
+          RESULTS: ${{ inputs.results }}
+        with:
+          script: |
+            const fs = require('fs');
+            const script = require('./workflows/.github/scripts/release-results.js');
+            return await script({github, context, core, fs});
+
+      - name: 'Upload results'
+        id: upload_results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: '${{ steps.check_results.outputs.artifact }}'
+          path: '${{ steps.check_results.outputs.filename }}'

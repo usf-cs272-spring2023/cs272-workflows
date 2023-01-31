@@ -1,0 +1,43 @@
+name: 'Project Review'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  main:
+    name: 'Main'
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJson('["sjengle"]'), github.event.review.user.login) }}
+
+    steps:
+      - name: 'Checkout workflows'
+        id: checkout_workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Create initial issue comment'
+        id: create_comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/issue-comment.js');
+            return await script({github, context, core});
+
+      - name: 'Update pull request'
+        id: update_pull
+        uses: actions/github-script@v6
+        env:
+          COMMENT_ID: '${{ steps.create_comment.outputs.comment_id }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/review-update.js');
+            return await script({github, context, core});

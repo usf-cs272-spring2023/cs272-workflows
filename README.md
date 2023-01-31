@@ -1,1 +1,2 @@
-# cs272-workflows
+# action-workflows
+Reusable project workflows

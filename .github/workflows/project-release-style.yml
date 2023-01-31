@@ -1,0 +1,222 @@
+name: 'Check Style'
+
+on:
+  workflow_call:
+    inputs:
+      action_ref:
+        description: "Ref for workflow or action checkout"
+        required: false
+        default: 'main'
+        type: string
+
+      release_ref:
+        description: "The release ref (for checkout)"
+        required: true
+        type: string
+
+      # version information
+      version_major:
+        description: "The major version number (i.e. project number) from the release tag"
+        required: true
+        type: string
+
+      version_minor:
+        description: "The minor version number (i.e. code review number) from the release tag"
+        required: true
+        type: string
+
+      version_patch:
+        description: "The patch version number from the release tag"
+        required: true
+        type: string
+
+      # user repo information
+      user_repo:
+        description: "Repository with user project code"
+        required: true
+        type: string
+      
+      user_path:
+        description: "Path to user project code"
+        required: true
+        type: string
+        default: "project-main"
+
+      user_cache:
+        description: "Cache key of project code"
+        required: true
+        type: string
+
+    outputs:
+      status:
+        description: "Status of each step in this workflow"
+        value: ${{ jobs.main.outputs.status }}
+
+jobs:
+  main:
+    name: 'Style'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      status: ${{ steps.step_status.outputs.status }}
+
+    steps:
+      - name: 'Checkout workflows'
+        id: checkout_workflows
+        uses: actions/checkout@v3
+        with:
+          repository: usf-cs272-spring2023/action-workflows
+          path: 'workflows'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Setup project code'
+        id: setup_project_code
+        uses: ./workflows/.github/actions/project-setup
+        with:
+          release_ref: '${{ inputs.release_ref }}'
+          user_repo:   '${{ inputs.user_repo }}'
+          user_path:   '${{ inputs.user_path }}'
+          user_cache:  '${{ inputs.user_cache }}'
+          setup_java:  'true'
+          
+      - name: 'Check for compile warnings'
+        id: compile_source_code
+        uses: actions/github-script@v6
+        env:
+          USER_PATH: '${{ inputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', '-DcompileOptionXlint=-Xlint:all,-processing', '-DcompileOptionXdoclint=-Xdoclint:none', '-Dmaven.compiler.showWarnings=true', '-DcompileOptionFail=true', 'clean', 'compile'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `Unable to compile project source code without warnings.`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Check for Javadoc warnings'
+        id: compile_javadoc_comments
+        if: ${{ always() && steps.setup_project_code.outcome == 'success' }}
+        uses: actions/github-script@v6
+        env:
+          USER_PATH: '${{ inputs.user_path }}'
+        with:
+          script: |
+            const command = 'mvn'
+            const args = ['-ntp', '-DcompileOptionXlint=-Xlint:preview', '-DcompileOptionXdoclint=-Xdoclint:all/private', '-Dmaven.compiler.showWarnings=true', '-DcompileOptionFail=true', 'clean', 'compile'];
+            const cwd = `${process.env.USER_PATH}`;
+            const message = `Unable to compile project source code without Javadoc warnings.`;
+            const expected = 0;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Check for TODO comments'
+        id: check_todo_comments
+        if: ${{ always() && steps.setup_project_code.outcome == 'success' }}
+        uses: actions/github-script@v6
+        env:
+          USER_PATH: '${{ inputs.user_path }}'
+        with:
+          script: |
+            const command = 'grep'
+            const args = ['-rnoE', '(//|\\*)?\\s*TODO.*$'];
+            const cwd = `${process.env.USER_PATH}/src/main/java`;
+            const message = `You should delete all TODO comments from your code.`;
+            const expected = 1;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Check for stack traces'
+        uses: actions/github-script@v6
+        id: check_stack_traces
+        if: ${{ always() && steps.setup_project_code.outcome == 'success' }}
+        env:
+          USER_PATH: '${{ inputs.user_path }}'
+        with:
+          script: |
+            const command = 'grep'
+            const args = ['-rnoE', '\\w\\.printStackTrace\\([^)]*\\)\\s*;'];
+            const cwd = `${process.env.USER_PATH}/src/main/java`;
+            const message = `Your code should not print exception stack traces.`;
+            const expected = 1;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Check extra main methods'
+        uses: actions/github-script@v6
+        id: check_main_methods
+        if: ${{ always() && steps.setup_project_code.outcome == 'success' }}
+        env:
+          USER_PATH: '${{ inputs.user_path }}'
+        with:
+          script: |
+            const command = 'grep'
+            const args = ['-rnoE', '--exclude=Driver.java', '\\s*public\\s+static\\s+void\\s+main\\s*\\('];
+            const cwd = `${process.env.USER_PATH}/src/main/java`;
+            const message = `Except for Driver.java, you should delete old main methods from your code.`;
+            const expected = 1;
+
+            const options = {ignoreReturnCode: true, cwd: cwd};
+            const result = await exec.exec(command, args, options);
+
+            if (result !== expected) {
+              core.setFailed(message);
+            }
+
+      - name: 'Check version patch number'
+        id: check_patch
+        if: ${{ always() }}
+        uses: actions/github-script@v6
+        env:
+          VERSION_MAJOR: '${{ inputs.version_major }}'
+          VERSION_MINOR: '${{ inputs.version_minor }}'
+          VERSION_PATCH: '${{ inputs.version_patch }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/release-patch.js');
+            return await script({github, context, core});
+
+      - name: 'Check version minor number'
+        id: check_minor
+        if: ${{ always() }}
+        uses: actions/github-script@v6
+        env:
+          VERSION_MAJOR: '${{ inputs.version_major }}'
+          VERSION_MINOR: '${{ inputs.version_minor }}'
+          VERSION_PATCH: '${{ inputs.version_patch }}'
+        with:
+          script: |
+            const script = require('./workflows/.github/scripts/release-minor.js');
+            return await script({github, context, core});
+
+      - name: 'Save step status'
+        id: step_status
+        uses: actions/github-script@v6
+        if: ${{ always() }}
+        env:
+          STEP_STATUS: ${{ toJSON(steps) }}
+        with:
+          script: |
+            core.setOutput('status', process.env.STEP_STATUS);
+            core.info(process.env.STEP_STATUS);

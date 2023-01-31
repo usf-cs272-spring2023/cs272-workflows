@@ -1,0 +1,155 @@
+name: "Project Setup"
+description: "Reusable action for setting up project source and test code"
+
+inputs:
+  release_ref:
+    description: "The release ref (for checkout)"
+    required: true
+
+  user_repo:
+    description: "Repository with user project code"
+    required: true
+  
+  user_cache:
+    description: "Cache key of project code"
+    required: true
+
+  user_path:
+    description: "Path to user project code"
+    required: true
+
+  setup_java:
+    description: "Set to 'true' if should setup Java and Maven"
+    required: true
+    default: "true"
+
+  test_repo:
+    description: "Repository with test project code"
+    required: false
+
+  test_cache:
+    description: "Cache key of test code"
+    required: false
+  
+  test_path:
+    description: "Path to test project code"
+    required: false
+    default: "project-tests"
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: 'Cache user code'
+      id: cache_user
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.user_path }}
+        key: ${{ inputs.user_cache }}
+
+    - name: 'Clone user code'
+      id: clone_user
+      if: ${{ steps.cache_user.outputs.cache-hit != 'true' }}
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.user_repo }}
+        path: ${{ inputs.user_path }}
+        ref: ${{ inputs.release_ref }}
+
+    - name: 'List source code'
+      id: check_user
+      shell: bash
+      run: |
+        # List source code
+        echo "::group::Listing source files"
+        echo "Source Code"
+        ls -ACGR ${{ inputs.user_path }}/src/
+        echo "::endgroup::"
+        echo " "
+
+    - name: 'Skip test code'
+      id: skip_tests
+      if: ${{ inputs.test_repo == '' }}
+      shell: bash
+      run: |
+        # Skip test code
+        echo "Skipping test code..."
+
+    - name: "Cache test code"
+      id: cache_test
+      if: ${{ steps.skip_tests.outcome == 'skipped' }}
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.test_path }}
+        key: ${{ inputs.test_cache }}
+
+    - name: "Clone test code"
+      id: clone_test
+      if: ${{ steps.skip_tests.outcome == 'skipped' && steps.cache-test.outputs.cache-hit != 'true' }}
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.test_repo }}
+        path: ${{ inputs.test_path }}
+
+    - name: "List test code"
+      id: check_test
+      if: ${{ steps.skip_tests.outcome == 'skipped' }}
+      shell: bash
+      run: |
+        # List test code
+        echo "::group::Listing test files"
+        ls -ACGR ${{ inputs.test_path }}/src
+        echo " "
+        ls -ACGR ${{ inputs.test_path }}/input
+        echo " "
+        ls -ACGR ${{ inputs.test_path }}/expected-nix
+        echo "::endgroup::"
+
+        echo "::group::Listing parent directory"
+        ls -ACG .
+        echo "::endgroup::"
+        echo " "
+
+    - name: 'Skip Java setup'
+      id: skip_java
+      if: ${{ inputs.setup_java != 'true' }}
+      shell: bash
+      run: |
+        # Skip Java setup
+        echo "Skipping Java setup..."
+
+    - name: "Setup Java version"
+      id: setup_java
+      if: ${{ steps.skip_java.outcome == 'skipped' }}
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'maven'
+
+    - name: "Check Java version"
+      id: check_java
+      if: ${{ steps.setup_java.outcome == 'success' }}
+      shell: bash
+      run: |
+        # Check Java version
+        echo "::group::Output Java versions"
+        java --version
+        echo ""
+        javac --version
+        echo ""
+        echo "::endgroup::"
+
+    - name: "Check Maven version"
+      id: check_maven
+      if: ${{ steps.setup_java.outcome == 'success' }}
+      shell: bash
+      working-directory: "${{ inputs.user_path }}"
+      run: |
+        # Check Maven version
+        echo "::group::Output Maven version"
+        mvn --version
+        echo "::endgroup::"
+        echo "::group::Resolving dependencies..."
+        mvn dependency:go-offline
+        echo "::endgroup::"
