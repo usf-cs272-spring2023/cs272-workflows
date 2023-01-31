@@ -26,19 +26,12 @@ on:
         type: string
 
 jobs:
-  main:
-    runs-on: ubuntu-latest
-
-    steps:
-      - shell: bash
-        run: echo "hello world"
-
-  # check_tests:
-  #   name: 'Check'
-  #   uses: ./.github/workflows/project-release-tests.yml
-  #   with:
-  #     action_ref:  '${{ inputs.action_ref }}'
-  #     release_tag: '${{ inputs.release_tag }}'
+  check_tests:
+    name: 'Check'
+    uses: ./.github/workflows/project-release-tests.yml
+    with:
+      action_ref:  '${{ inputs.action_ref }}'
+      release_tag: '${{ inputs.release_tag }}'
 
   # check_style:
   #   name: 'Check'

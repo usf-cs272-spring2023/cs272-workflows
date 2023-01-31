@@ -47,7 +47,7 @@ jobs:
         id: checkout_workflows
         uses: actions/checkout@v3
         with:
-          repository: usf-cs272-spring2023/action-workflows
+          repository: usf-cs272-spring2023/cs272-workflows
           path: 'workflows'
           ref: '${{ inputs.action_ref }}'
 
