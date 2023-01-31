@@ -243,7 +243,7 @@ jobs:
         with:
           script: |
             const command = 'mvn'
-            const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, 'test'];
+            const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, '-DfailIfNoTests=true', 'test'];
             const cwd = `${process.env.USER_PATH}`;
             const message = `One or more tests failed for the next project. Functionality for the next project should be in a different branch!`;
             const expected = 0;
