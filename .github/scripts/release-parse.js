@@ -62,13 +62,13 @@ module.exports = async ({github, context, core}) => {
   out.release_date = release_date;
 
   // handle project 3 special cases
-  let test_patch = out.version_patch;
+  let test_patch = out.version_minor;
 
-  if (out.version_major == 3 && out.version_patch > 2 || out.version_patch > 1) {
+  if (out.version_major == 3 && out.version_minor > 2 || out.version_minor > 1) {
     test_patch = 'x';
   }
 
-  out.test_number = `v${out.version_major}.${out.version_minor}.${test_patch}`;
+  out.test_number = `v${out.version_major}.${test_patch}`;
 
   // output and set result
   core.startGroup('Setting output...');
