@@ -202,7 +202,7 @@ jobs:
           script: |
             const command = 'mvn'
             // const args = ['-ntp', `-Dgroups=${process.env.TEST_TAG}`, '-DfailIfNoTests=true', 'test'];
-            const args = ['-ntp', 'test'];
+            const args = ['-ntp', `-Dgroups=hello`, '-DfailIfNoTests=true', 'test'];
             const cwd = `${process.env.USER_PATH}`;
             const message = `One or more tests failed for the current project.`;
             const expected = 0;
