@@ -111,18 +111,24 @@ module.exports = async ({github, context, core}) => {
     output.review_grades = review_grades;
 
     // process each request type
-    switch (request_type) {
+    switch (request_type) { // TODO
       case 'grade_tests':
-        // check if there is an issue for this request already
-        if ('grade-tests' in current) {
-          const found = current['grade-tests'][0];
-
-          // if the found issue isn't this one
-          if (found.number != context.issue.number) {
-            error_messages.push(`You already requested a project ${major} tests grade in issue #${found.number}. You only need to request this grade ONCE per project. If the issue is closed and you do not see a grade on Canvas yet, please post on Piazza asking for an update.`);
-            return; // exit out of try block
-          }
+        // check if there shouldn't be a test grade for this release
+        if (minor > 1) {
+          error_messages.push(`You do not need to request a project test grade for a v${major}.${minor} release.`);
+          return;
         }
+
+        // check if there is an issue for this request already
+        // if ('grade-tests' in current) {
+        //   const found = current['grade-tests'][0];
+
+        //   // if the found issue isn't this one
+        //   if (found.number != context.issue.number) {
+        //     error_messages.push(`You already requested a project ${major} tests grade in issue #${found.number}. You only need to request this grade ONCE per project. If the issue is closed and you do not see a grade on Canvas yet, please post on Piazza asking for an update.`);
+        //     return; // exit out of try block
+        //   }
+        // }
 
         // check if there is a previous project
         if (previous != undefined) {
@@ -138,7 +144,7 @@ module.exports = async ({github, context, core}) => {
         }
 
         labels.push('grade-tests');
-        output.assignment_name = `Project ${major} Tests`;
+        output.assignment_name = `Project v${major}.${minor} Tests`;
         output.starting_points = 100;
         output.submitted_date  = results.release_date;
         break;
@@ -193,7 +199,7 @@ module.exports = async ({github, context, core}) => {
 
         output.check_date = ''; // date to check eligibility against
 
-        output.next_type = output.found_reviews > 0 ? 'request-quick-review' : 'request-code-review';
+        output.next_type = output.found_reviews > 1 ? 'request-quick-review' : 'request-code-review';
 
         if (output.found_reviews != 0) {
           const latest = code_reviews[0];
@@ -260,6 +266,11 @@ module.exports = async ({github, context, core}) => {
         break;
 
       case 'grade_review':
+        if (minor > 1) {
+          error_messages.push(`You do not need to request a project review grade for a v${major}.${minor} release.`);
+          return;
+        }
+
         // check if there is an issue for this request already
         const has_reviews = 'grade-review' in current;
         if (has_reviews) {
@@ -302,8 +313,8 @@ module.exports = async ({github, context, core}) => {
 
         // set the other values
         labels.push('grade-review');
-        output.assignment_name = `Project ${major} Review ${minor + 1}`;
-        output.starting_points = minor < 1 ? 30 : 20;
+        output.assignment_name = `Project v${major}.${minor} Review`;
+        output.starting_points = 100;
         output.pull_request = found.number;
         break;
 
@@ -335,8 +346,8 @@ module.exports = async ({github, context, core}) => {
         core.info(`Found pull request #${passed.number} passed code review for project ${major}.`);
 
         labels.push('grade-design');
-        output.assignment_name = `Project ${major} Design`;
-        output.starting_points = 50;
+        output.assignment_name = `Project v${major}.x Design`;
+        output.starting_points = 100;
         output.submitted_date  = results.release_date;
         output.pull_request = passed.number;
         break;
