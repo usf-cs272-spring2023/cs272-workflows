@@ -72,7 +72,7 @@ module.exports = async ({github, context, core}) => {
       const tag_match = matched[3];
 
       if (tag_match === null || tag_match.length !== 4) {
-        error_messages.push(`Unable to parse "${parsed.release}" into major, minor, and patch version numbers.`);
+        error_messages.push(`Unable to parse "${output.release}" into major, minor, and patch version numbers.`);
       }
       else {
         output.version_major = parseInt(tag_match[1]);
