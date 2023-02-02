@@ -75,6 +75,8 @@ module.exports = async ({github, context, core}) => {
         }
       }
 
+      core.info(`parsed: ${parsed}, project: ${project}`);
+
       // store results
       for (const issue_type of issue_types) {
         if (!parsed[project].hasOwnProperty(issue_type)) {
