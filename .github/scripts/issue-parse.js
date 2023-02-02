@@ -69,7 +69,7 @@ module.exports = async ({github, context, core}) => {
       // attempt to parse the release
       const tag_regex = /^v([1-4])\.(\d+)\.(\d+)$/;
       // const tag_match = parsed.release.match(tag_regex);
-      const tag_match = matched[3];
+      const tag_match = output.release.match(tag_regex);
 
       if (tag_match === null || tag_match.length !== 4) {
         error_messages.push(`Unable to parse "${output.release}" into major, minor, and patch version numbers.`);
