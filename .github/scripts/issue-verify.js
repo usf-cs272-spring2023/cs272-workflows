@@ -75,15 +75,18 @@ module.exports = async ({github, context, core}) => {
         }
       }
 
-      core.info(`parsed: ${parsed}, project: ${project}`);
+      if (!project || !parsed.hasOwnProperty(project)) {
+        core.info(`Skipping issue #${issue.number} due to missing "project" label.`);
+      }
+      else {
+        // store results
+        for (const issue_type of issue_types) {
+          if (!parsed[project].hasOwnProperty(issue_type)) {
+            parsed[project][issue_type] = [];
+          }
 
-      // store results
-      for (const issue_type of issue_types) {
-        if (!parsed[project].hasOwnProperty(issue_type)) {
-          parsed[project][issue_type] = [];
+          parsed[project][issue_type].push(issue);
         }
-
-        parsed[project][issue_type].push(issue);
       }
     }
 
