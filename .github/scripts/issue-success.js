@@ -108,7 +108,7 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
       }
 
       // create appointment link
-      const autofill = `name=${encodeURIComponent(student_name)}&email=${encodeURIComponent(user_name.concat('@dons.usfca.edu'))}&a1=${encodeURIComponent(context.payload.issue.html_url)}`;
+      const autofill = `name=${encodeURIComponent(student_name)}&email=${encodeURIComponent(usf_email)}&a1=${encodeURIComponent(context.payload.issue.html_url)}`;
 
       const sophie_link = `https://calendly.com/sjengle/${review_text.toLowerCase()}-review?month=${eligible_date.toFormat('yyyy-MM')}&date=${eligible_date.toFormat('yyyy-MM-dd')}&${autofill}`;
       let signup_link = `Use [this personalized appointment signup link](${sophie_link}) to sign up for a code review appointment. *This link will autofill most of the required information.*`;
