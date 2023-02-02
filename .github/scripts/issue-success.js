@@ -2,7 +2,7 @@
 module.exports = async ({github, context, core, DateTime, Settings}) => {
   const results = JSON.parse(process.env.RESULTS);
 
-  const review_delay = 4; // days to wait in between code reviews
+  const review_delay = 1; // days to wait in between code reviews
 
   const request_type = results.parse_request.outputs.request_type;
   const grade_request = request_type.startsWith('grade_');
