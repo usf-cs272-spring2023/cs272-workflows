@@ -25,7 +25,7 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
     const verified_link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${verified_id}`;
 
     const student_name = results?.parse_request?.outputs?.name;
-    const user_name = results?.parse_request?.outputs?.user;
+    const usf_email = results?.parse_request?.outputs?.email;
 
     let message = undefined;
 
@@ -48,7 +48,7 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
 |  |  |
 |----:|:-----|
 |   Student: | ${student_name} |
-| USF Email: | <${user_name}@dons.usfca.edu> |
+| USF Email: | <${usf_email}> |
 | | |
 |   Assignment: | ${results?.calculate_grade?.outputs?.assignment_name} |
 |      Release: | [\`${release_tag}\`](${release_link}) (verified in [run ${verified_id}](${verified_link})) |
@@ -121,7 +121,7 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
 |  |  |
 |----:|:-----|
 |   Student: | ${student_name} |
-| USF Email: | <${user_name}@dons.usfca.edu> |
+| USF Email: | <${usf_email}> |
 | | |
 | Project: | ${results?.verify_request?.outputs?.milestone_name} |
 | Release: | [\`${release_tag}\`](${release_link}) (verified in [run ${verified_id}](${verified_link})) |

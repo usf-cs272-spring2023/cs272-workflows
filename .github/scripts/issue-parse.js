@@ -30,39 +30,46 @@ module.exports = async ({github, context, core}) => {
     }
 
     // parse issue body 
-    const json_regex = /```json([^`]+)```/;
-    const json_match = body.match(json_regex);
+    // const json_regex = /```json([^`]+)```/;
+    const pattern = /^### Full Name\s+([^\n]+)\s+### USF Email\s+([^\n]+)\s+### Release\s+([^\n]+)\b\s*$/;
+    const matched = body.match(pattern);
 
-    if (json_match === null || json_match.length !== 2) {
-      error_messages.push(`Unable to locate JSON configuration in issue body.`);
+    if (matched === null || matched.length !== 4) {
+      console.log(matched);
+      error_messages.push(`Unable to parse details from issue body.`);
       return; // don't continue try block
     }
 
-    const parsed = JSON.parse(json_match[1]);
-    console.log(`Parsed: ${JSON.stringify(parsed)}`);
+    output.name = matched[1];
+    output.email = matched[2];
+    output.release = matched[3];
+
+    // const parsed = JSON.parse(json_match[1]);
+    // console.log(`Parsed: ${JSON.stringify(parsed)}`);
 
     // trim all of the values and save as output
-    Object.keys(parsed).forEach(key => parsed[key] = parsed[key].trim());
-    Object.assign(output, parsed);
+    // Object.keys(parsed).forEach(key => parsed[key] = parsed[key].trim());
+    // Object.assign(output, parsed);
 
     // check for valid name
-    if (!parsed.hasOwnProperty('name') || parsed.name == "FULL_NAME") {
-      error_messages.push(`The "name" property must be present and filled in with your full (first and last) name.`);
-    }
+    // if (!parsed.hasOwnProperty('name') || parsed.name == "FULL_NAME") {
+    //   error_messages.push(`The "name" property must be present and filled in with your full (first and last) name.`);
+    // }
 
     // check for valid user
-    if (!parsed.hasOwnProperty('user') || parsed.user == "USER_NAME") {
-      error_messages.push(`The "user" property must be present and filled in with your USF username.`);
-    }
+    // if (!parsed.hasOwnProperty('user') || parsed.user == "USER_NAME") {
+    //   error_messages.push(`The "user" property must be present and filled in with your USF username.`);
+    // }
 
     // check for valid release
-    if (!parsed.hasOwnProperty('release') || parsed.release == "v0.0.0") {
-      error_messages.push(`The "release" property must be present and filled in with a valid release.`);
-    }
-    else {
+    // if (!parsed.hasOwnProperty('release') || parsed.release == "v0.0.0") {
+    //   error_messages.push(`The "release" property must be present and filled in with a valid release.`);
+    // }
+    // else {
       // attempt to parse the release
       const tag_regex = /^v([1-4])\.(\d+)\.(\d+)$/;
-      const tag_match = parsed.release.match(tag_regex);
+      // const tag_match = parsed.release.match(tag_regex);
+      const tag_match = matched[3];
 
       if (tag_match === null || tag_match.length !== 4) {
         error_messages.push(`Unable to parse "${parsed.release}" into major, minor, and patch version numbers.`);
@@ -73,7 +80,7 @@ module.exports = async ({github, context, core}) => {
         output.version_patch = parseInt(tag_match[3]);
         output.release_tag  = `v${output.version_major}.${output.version_minor}.${output.version_patch}`;
       }
-    }
+    // }
   }
   catch (error) {
     // add error and output stack trace
