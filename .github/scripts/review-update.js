@@ -32,18 +32,26 @@ module.exports = async ({github, context, core}) => {
     let footer  = `See [run #${context.runNumber} (id ${context.runId})](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`;
 
     // parse pull request body 
-    const json_regex = /```json([^`]+)```/;
-    const json_match = body.match(json_regex);
+    // const json_regex = /```json([^`]+)```/;
+    // const json_match = body.match(json_regex);
+    const pattern = /^### Full Name\s+([^\n]+)\s+### USF Email\s+([^\n]+)\s+### Release\s+([^\n]+)\b\s*$/;
+    const matched = body.match(pattern);
 
-    if (json_match === null || json_match.length !== 2) {
-      const message = 'Unable to locate JSON configuration in pull request body.';
+    if (matched === null || matched.length !== 4) {
+      const message = 'Unable to parse details from issue body.';
       header += 'there was an issue with this review:'
       comment = `  - ${message}`;
       core.setFailed(message);
     }
     else {
-      const parsed = JSON.parse(json_match[1]);
-      console.log(`Parsed: ${JSON.stringify(parsed)}`);
+      const parsed = {
+        name: matched[1],
+        email: matched[2],
+        release: matched[3],
+      };
+      
+      // const parsed = JSON.parse(json_match[1]);
+      // console.log(`Parsed: ${JSON.stringify(parsed)}`);
 
       // attempt to parse the release
       const tag_regex = /^v([1-4])\.(\d+)\.(\d+)$/;
