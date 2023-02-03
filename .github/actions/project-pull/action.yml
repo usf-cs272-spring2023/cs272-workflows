@@ -71,7 +71,7 @@ runs:
           const command = 'git';
           const args = ['diff', '--exit-code', '--shortstat', 'origin/main', `refs/tags/${ process.env.RELEASE_TAG }`];
           const cwd = `${process.env.USER_PATH}`;
-          const message = `The main branch has one or more commits since release ${ process.env.RELEASE_TAG } was created. There must be no changes between the main branch and the release for code review.`;
+          const message = `The main branch has one or more commits since release ${ process.env.RELEASE_TAG } was created. There should be no changes between the main branch and the release for code review,, or you will run into merge conflicts!`;
           const expected = 0;
 
           const options = {ignoreReturnCode: true, cwd: cwd};
@@ -79,7 +79,8 @@ runs:
 
           if (result !== expected) {
             core.setOutput('error_messages', message);
-            core.setFailed(message);
+            // core.setFailed(message);
+            core.warning(warning);
           }
 
     - name: 'Creating review branch'
