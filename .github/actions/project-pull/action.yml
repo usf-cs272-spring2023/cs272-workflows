@@ -71,16 +71,23 @@ runs:
           const command = 'git';
           const args = ['diff', '--exit-code', '--shortstat', 'origin/main', `refs/tags/${ process.env.RELEASE_TAG }`];
           const cwd = `${process.env.USER_PATH}`;
-          const message = `The main branch has one or more commits since release ${ process.env.RELEASE_TAG } was created. There should be no changes between the main branch and the release for code review,, or you will run into merge conflicts!`;
+          const message = `The main branch has one or more commits since release ${ process.env.RELEASE_TAG } was created. There should be no changes between the main branch and the release for code review, or you will run into merge conflicts! You can either proceed, or close this request, make a new release with the latest changes, and then re-request a code review.`;
           const expected = 0;
 
           const options = {ignoreReturnCode: true, cwd: cwd};
           const result = await exec.exec(command, args, options);
 
           if (result !== expected) {
-            core.setOutput('error_messages', message);
+            // core.setOutput('error_messages', message);
             // core.setFailed(message);
             core.warning(message);
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `:warning: ${message}`
+            })
           }
 
     - name: 'Creating review branch'
