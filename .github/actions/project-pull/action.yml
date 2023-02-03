@@ -80,7 +80,7 @@ runs:
           if (result !== expected) {
             core.setOutput('error_messages', message);
             // core.setFailed(message);
-            core.warning(warning);
+            core.warning(message);
           }
 
     - name: 'Creating review branch'
