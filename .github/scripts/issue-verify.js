@@ -119,7 +119,7 @@ module.exports = async ({github, context, core}) => {
     switch (request_type) { // TODO
       case 'grade_tests':
         // check if there shouldn't be a test grade for this release
-        if (minor > 1) {
+        if (minor > 2) {
           error_messages.push(`You do not need to request a project test grade for a v${major}.${minor} release.`);
           return;
         }
