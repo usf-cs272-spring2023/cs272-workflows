@@ -56,7 +56,7 @@ module.exports = async ({github, context, core, fs}) => {
       core.error(`❌ The release ${release} may not be used to request any project ${major} grades or code reviews.`);
     }
     else {
-      if (minor === 0) {
+      if (minor < 2) {
         output.grade_tests = true;
         core.notice(`✅ The release ${release} may be used to request a project ${major} tests grade. This grade only needs to be requested once.`);
       }
