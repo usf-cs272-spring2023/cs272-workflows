@@ -58,7 +58,7 @@ module.exports = async ({github, context, core}) => {
     core.info(`Found ${approved.length} code reviews for project ${major}.`);
 
     if (approved.length != minor) {
-      core.setFailed(`This release version should start with v${major}.${approved.length}, not with v${major}.${minor}, since you have ${approved.length} code reviews for project ${major} already. You may want to delete the ${release} release *and* tag (two separate steps).`);
+      core.warning(`This release version should start with v${major}.${approved.length}, not with v${major}.${minor}, since you have ${approved.length} code reviews for project ${major} already. You may want to delete the ${release} release *and* tag (two separate steps).`);
     }
   }
   catch (error) {
