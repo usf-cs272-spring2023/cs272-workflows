@@ -47,8 +47,8 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
 
 |  |  |
 |----:|:-----|
-|   Student: | ${student_name} |
-| USF Email: | <${usf_email}> |
+|   Student: | ${student_name.trim()} |
+| USF Email: | <${usf_email.trim()}> |
 | | |
 |   Assignment: | ${results?.calculate_grade?.outputs?.assignment_name} |
 |      Release: | [\`${release_tag}\`](${release_link}) (verified in [run ${verified_id}](${verified_link})) |
