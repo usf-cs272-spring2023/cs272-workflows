@@ -82,7 +82,7 @@ module.exports = async ({github, context, core, DateTime, Settings}) => {
       // set last review values if appropriate
       if (last_type) {
         last_pull_text = `Pull Request #${results?.verify_request?.outputs?.last_pull}`;
-        last_time_text = last_type == 'request-code-review' ? '30 minutes' : '15 minutes';
+        last_time_text = last_type == 'request-code-review' ? '20 minutes' : '10 minutes';
 
         let last_date = DateTime.fromISO(`${results?.verify_request?.outputs?.last_date}`);
         let check_date = DateTime.fromISO(`${results?.verify_request?.outputs?.check_date}`);
