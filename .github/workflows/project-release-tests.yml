@@ -224,12 +224,11 @@ jobs:
         id: save_results
         if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
         uses: actions/upload-artifact@v3
-        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
         with:
           name: results
           path: |
-            actual
-            target/surefire-reports
+            ${{ steps.generate_keys.outputs.user_path }}/actual
+            ${{ steps.generate_keys.outputs.user_path }}/target/surefire-reports
 
       - name: 'Run previous project tests'
         id: run_past_tests
