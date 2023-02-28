@@ -212,11 +212,19 @@ jobs:
             if (result !== expected) {
               core.setFailed(message);
             }
-      
+
+      - name: 'List results'
+        id: list_results
+        if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
+        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
+        run: |
+          ls -ACGR .
+
       - name: 'Save results'
         id: save_results
         if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
         uses: actions/upload-artifact@v3
+        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
         with:
           name: results
           path: |
