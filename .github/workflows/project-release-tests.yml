@@ -216,7 +216,6 @@ jobs:
       - name: 'List results'
         id: list_results
         if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
-        working-directory: '${{ steps.generate_keys.outputs.user_path }}'
         run: |
           ls -ACGR .
 
@@ -227,7 +226,7 @@ jobs:
         with:
           name: results
           path: |
-            ${{ steps.generate_keys.outputs.user_path }}/actual
+            actual
             ${{ steps.generate_keys.outputs.user_path }}/target/surefire-reports
 
       - name: 'Run previous project tests'
