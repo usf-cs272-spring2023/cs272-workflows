@@ -226,7 +226,7 @@ jobs:
         with:
           name: saved-test-results
           path: |
-            ${{ steps.generate_keys.outputs.user_path }}/actual
+            ${{ steps.generate_keys.outputs.test_path }}/actual
             
       # ${{ steps.generate_keys.outputs.user_path }}/target/surefire-reports
 
