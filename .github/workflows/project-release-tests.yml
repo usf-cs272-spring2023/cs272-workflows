@@ -213,21 +213,22 @@ jobs:
               core.setFailed(message);
             }
 
-      - name: 'List results'
-        id: list_results
-        if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
-        run: |
-          ls -ACGR .
+      # - name: 'List results'
+      #   id: list_results
+      #   if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
+      #   run: |
+      #     ls -ACGR .
 
-      - name: 'Save results'
+      - name: 'Save current project results'
         id: save_results
         if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
         uses: actions/upload-artifact@v3
         with:
-          name: results
+          name: saved-test-results
           path: |
-            actual
-            ${{ steps.generate_keys.outputs.user_path }}/target/surefire-reports
+            ${{ steps.generate_keys.outputs.user_path }}/actual
+            
+      # ${{ steps.generate_keys.outputs.user_path }}/target/surefire-reports
 
       - name: 'Run previous project tests'
         id: run_past_tests
