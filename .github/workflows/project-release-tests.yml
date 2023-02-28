@@ -212,6 +212,16 @@ jobs:
             if (result !== expected) {
               core.setFailed(message);
             }
+      
+      - name: 'Save results'
+        id: save_results
+        if: ${{ failure() && steps.run_this_tests.conclusion == 'failure' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: |
+            actual
+            target/surefire-reports
 
       - name: 'Run previous project tests'
         id: run_past_tests
