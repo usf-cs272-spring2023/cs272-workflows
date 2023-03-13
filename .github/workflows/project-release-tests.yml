@@ -225,6 +225,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: saved-test-results
+          if-no-files-found: ignore
           path: |
             ${{ steps.generate_keys.outputs.test_path }}/actual
             
