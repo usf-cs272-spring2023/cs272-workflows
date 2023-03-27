@@ -61,10 +61,15 @@ module.exports = async ({github, context, core}) => {
   out.release_id   = release_id;
   out.release_date = release_date;
 
-  // handle project 3 special cases
   let test_patch = out.version_minor;
+  let limit = 1;
 
-  if (out.version_major == 3 && out.version_minor > 2 || out.version_minor > 1) {
+  // handle project 3 special cases
+  if (out.version_major == 3) {
+    limit = 2;
+  }
+
+  if (out.version_minor > limit) {
     test_patch = 'x';
   }
 
