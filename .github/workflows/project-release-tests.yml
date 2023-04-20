@@ -235,7 +235,7 @@ jobs:
         id: run_past_tests
         uses: actions/github-script@v6
         env:
-          TEST_TAG: 'past-${{ steps.parse_release.outputs.version_major }}'
+          TEST_TAG: 'past-v${{ steps.parse_release.outputs.version_major }}'
           USER_PATH: '${{ steps.generate_keys.outputs.user_path }}'
         with:
           script: |
